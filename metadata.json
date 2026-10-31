@@ -1,0 +1,6 @@
+{
+  "name": "ASVILLA – Luxury Heritage Hotel Varanasi",
+  "description": "Official hotel booking platform for ASVILLA, an elegant luxury heritage hotel in Varanasi (Kashi), Uttar Pradesh. Reserve rooms & suites with Pay at Hotel or instant UPI QR.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
