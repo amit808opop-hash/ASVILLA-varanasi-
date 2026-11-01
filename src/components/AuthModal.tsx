@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
   X,
@@ -11,13 +11,16 @@ import {
   ArrowLeft,
   KeyRound,
   Info,
-  Send
+  Send,
+  Building
 } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialTab?: 'login' | 'register' | 'admin';
+  promptMessage?: string | null;
+  pendingRoomName?: string | null;
   onSuccess?: (isAdminLogin?: boolean) => void;
 }
 
@@ -25,6 +28,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
   initialTab = 'login',
+  promptMessage,
+  pendingRoomName,
   onSuccess,
 }) => {
   const { signIn, signInAdmin, signUp, resetPassword, resendVerificationEmail } = useAuth();
@@ -35,6 +40,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   // Admin form state
   const [adminPassword, setAdminPassword] = useState('');
@@ -45,6 +51,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [verificationPendingEmail, setVerificationPendingEmail] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (isOpen) {
+      setTab(initialTab);
+      setErrorMsg(null);
+      setSuccessMsg(null);
+    }
+  }, [isOpen, initialTab]);
+
   if (!isOpen) return null;
 
   const handleGuestSubmit = async (e: React.FormEvent) => {
@@ -52,6 +66,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setErrorMsg(null);
     setSuccessMsg(null);
     setVerificationPendingEmail(null);
+
+    if (tab === 'register') {
+      if (!fullName.trim() || !phone.trim()) {
+        setErrorMsg('Please enter your full name and phone number.');
+        return;
+      }
+      if (password.length < 6) {
+        setErrorMsg('Password must be at least 6 characters.');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setErrorMsg('Passwords do not match. Please ensure both passwords match.');
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -67,12 +97,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           setErrorMsg(res.error || 'Invalid email or password.');
         }
       } else if (tab === 'register') {
-        if (!fullName.trim() || !phone.trim()) {
-          setErrorMsg('Please enter your full name and phone number.');
-          setLoading(false);
-          return;
-        }
-
         const res = await signUp(fullName.trim(), email.trim(), phone.trim(), password);
         if (res.success) {
           if (res.needsEmailVerification) {
@@ -84,7 +108,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             setTimeout(() => {
               onClose();
               if (onSuccess) onSuccess(false);
-            }, 1200);
+            }, 1000);
           }
         } else {
           setErrorMsg(res.error || 'Could not complete registration.');
@@ -171,8 +195,60 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
         </div>
 
+        {/* Mandatory Booking Authentication Banner if prompted */}
+        {promptMessage && tab !== 'admin' && (
+          <div className="bg-[#FAF4ED] px-6 py-3.5 border-b border-[#9E7D47]/20">
+            <div className="flex items-start gap-2.5">
+              <Info className="w-4 h-4 text-[#9E7D47] shrink-0 mt-0.5" />
+              <div className="flex-1 text-xs">
+                <div className="font-semibold text-[#1C130D]">
+                  {promptMessage}
+                </div>
+                {pendingRoomName && (
+                  <div className="text-[11px] text-[#2B1E16]/75 mt-0.5 flex items-center gap-1">
+                    <Building className="w-3 h-3 text-[#9E7D47]" />
+                    <span>Selected Chamber: <strong>{pendingRoomName}</strong></span>
+                  </div>
+                )}
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTab('login');
+                      setErrorMsg(null);
+                      setSuccessMsg(null);
+                    }}
+                    className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+                      tab === 'login'
+                        ? 'bg-[#2B1E16] text-white shadow-xs'
+                        : 'bg-white text-[#2B1E16] border border-[#2B1E16]/15 hover:bg-[#FAF8F5]'
+                    }`}
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTab('register');
+                      setErrorMsg(null);
+                      setSuccessMsg(null);
+                    }}
+                    className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+                      tab === 'register'
+                        ? 'bg-[#2B1E16] text-white shadow-xs'
+                        : 'bg-white text-[#2B1E16] border border-[#2B1E16]/15 hover:bg-[#FAF8F5]'
+                    }`}
+                  >
+                    Create Account
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Guest Tab Switcher (Visible only on guest views: login & register) */}
-        {(tab === 'login' || tab === 'register') && (
+        {(tab === 'login' || tab === 'register') && !promptMessage && (
           <div className="flex border-b border-[#2B1E16]/10 bg-[#FAF8F5]/50">
             <button
               type="button"
@@ -204,7 +280,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   : 'border-transparent text-[#2B1E16]/70 hover:text-[#1C130D]'
               }`}
             >
-              Register
+              Create Account
             </button>
           </div>
         )}
@@ -385,6 +461,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
               )}
 
+              {tab === 'register' && (
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-[#2B1E16]/75 mb-1">
+                    Confirm Password *
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-[#9E7D47] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-9 pr-3 py-2 text-sm bg-[#FAF8F5] border border-[#2B1E16]/15 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#9E7D47] text-[#1C130D]"
+                    />
+                  </div>
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={loading}
@@ -414,7 +510,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </button>
                 </div>
               ) : tab === 'login' ? (
-                /* Simple Switch to Admin link - No admin email displayed! */
+                /* Simple Switch to Admin link - No admin email displayed */
                 <div className="mt-6 pt-4 border-t border-[#2B1E16]/10 text-center">
                   <button
                     type="button"

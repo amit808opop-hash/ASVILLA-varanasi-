@@ -211,10 +211,13 @@ DROP POLICY IF EXISTS "Users view own bookings" ON public.bookings;
 CREATE POLICY "Users view own bookings" ON public.bookings
   FOR SELECT USING (auth.uid() = user_id OR public.is_admin());
 
--- Anyone authenticated or guest can create booking
+-- Only authenticated users can create booking, linking user_id to auth.uid()
 DROP POLICY IF EXISTS "Anyone can insert booking" ON public.bookings;
-CREATE POLICY "Anyone can insert booking" ON public.bookings
-  FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Authenticated users can insert booking" ON public.bookings;
+CREATE POLICY "Authenticated users can insert booking" ON public.bookings
+  FOR INSERT WITH CHECK (
+    auth.uid() IS NOT NULL AND (auth.uid() = user_id OR public.is_admin())
+  );
 
 -- Users can cancel their own bookings, admins can update any booking
 DROP POLICY IF EXISTS "Users can cancel own booking or admin update" ON public.bookings;
@@ -227,10 +230,13 @@ DROP POLICY IF EXISTS "Users view own payments" ON public.payments;
 CREATE POLICY "Users view own payments" ON public.payments
   FOR SELECT USING (auth.uid() = user_id OR public.is_admin());
 
--- Insert payment on booking creation
+-- Only authenticated users can insert payment linked to their user_id
 DROP POLICY IF EXISTS "Anyone can insert payment" ON public.payments;
-CREATE POLICY "Anyone can insert payment" ON public.payments
-  FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Authenticated users can insert payment" ON public.payments;
+CREATE POLICY "Authenticated users can insert payment" ON public.payments
+  FOR INSERT WITH CHECK (
+    auth.uid() IS NOT NULL AND (auth.uid() = user_id OR public.is_admin())
+  );
 
 -- Only admins can update payment verification status
 DROP POLICY IF EXISTS "Only admins can update payments" ON public.payments;

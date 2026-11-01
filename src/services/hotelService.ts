@@ -303,6 +303,21 @@ export const hotelService = {
 
   // Create a new reservation
   async createBooking(formData: BookingFormData, userId?: string | null): Promise<Booking> {
+    // 1. Mandatory Guest Authentication Check at Service Layer
+    let effectiveUserId = userId || null;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.id) {
+        effectiveUserId = user.id;
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    if (!effectiveUserId) {
+      throw new Error('Authentication required. Please sign in or create an account before completing your hotel reservation.');
+    }
+
     const isAvailable = await this.checkRoomAvailability(formData.roomId, formData.checkIn, formData.checkOut);
     if (!isAvailable) {
       throw new Error('This room is not available for the selected dates. Please choose different dates or another room.');
@@ -331,7 +346,7 @@ export const hotelService = {
     const newBooking: Booking = {
       id: bookingId,
       booking_reference: bookingReference,
-      user_id: userId || null,
+      user_id: effectiveUserId,
       room_id: formData.roomId,
       guest_name: formData.guestName,
       guest_email: formData.guestEmail,

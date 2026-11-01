@@ -26,6 +26,7 @@ interface BookingModalProps {
   initialCheckIn?: string;
   initialCheckOut?: string;
   initialGuests?: number;
+  onRequireAuth?: (tab: 'login' | 'register') => void;
   onBookingSuccess?: (booking: Booking) => void;
 }
 
@@ -37,6 +38,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   initialCheckIn,
   initialCheckOut,
   initialGuests = 2,
+  onRequireAuth,
   onBookingSuccess,
 }) => {
   const { profile } = useAuth();
@@ -135,6 +137,15 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+
+    // Mandatory Guest Authentication Check
+    if (!profile) {
+      setErrorMessage('Please sign in or create an account to continue with your reservation.');
+      if (onRequireAuth) {
+        onRequireAuth('login');
+      }
+      return;
+    }
 
     if (!activeRoom) {
       setErrorMessage('Please select a valid room.');
@@ -322,6 +333,39 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 <div className="p-3.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-800 flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
                   <span>{errorMessage}</span>
+                </div>
+              )}
+
+              {/* Guest Authentication Notice if opened unauthenticated */}
+              {!profile && (
+                <div className="p-4 bg-amber-50/90 border border-amber-200/80 rounded-xl">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="text-xs font-semibold uppercase tracking-wider text-amber-900 mb-0.5">
+                        Guest Registration Required
+                      </h4>
+                      <p className="text-xs text-amber-800 leading-relaxed mb-3">
+                        Please sign in or create an account to finalize your reservation at ASVILLA. Your selected chamber and dates are preserved.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onRequireAuth?.('login')}
+                          className="px-3 py-1.5 text-xs font-semibold text-white bg-[#2B1E16] hover:bg-[#422F22] rounded-md transition-colors cursor-pointer"
+                        >
+                          Sign In
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onRequireAuth?.('register')}
+                          className="px-3 py-1.5 text-xs font-semibold text-[#2B1E16] bg-white hover:bg-amber-100/60 border border-[#2B1E16]/20 rounded-md transition-colors cursor-pointer"
+                        >
+                          Create Account
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -664,6 +708,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 >
                   {loading
                     ? 'Confirming Reservation...'
+                    : !profile
+                    ? 'Sign In / Register to Confirm'
                     : paymentMethod === 'COD'
                     ? 'Confirm Reservation (Pay at Hotel)'
                     : 'Submit UPI Payment & Confirm'}

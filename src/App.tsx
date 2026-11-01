@@ -33,6 +33,8 @@ function MainApp() {
   // Modals
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [selectedRoomForBooking, setSelectedRoomForBooking] = useState<Room | null>(null);
+  const [pendingBookingRoom, setPendingBookingRoom] = useState<Room | null>(null);
+  const [authPromptMessage, setAuthPromptMessage] = useState<string | null>(null);
 
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedRoomForDetail, setSelectedRoomForDetail] = useState<Room | null>(null);
@@ -71,7 +73,18 @@ function MainApp() {
   };
 
   const handleOpenBooking = (room?: Room) => {
-    setSelectedRoomForBooking(room || rooms[0] || null);
+    const targetRoom = room || selectedRoomForBooking || rooms[0] || null;
+    setSelectedRoomForBooking(targetRoom);
+
+    // Mandatory Guest Authentication Check before opening booking modal
+    if (!profile) {
+      setPendingBookingRoom(targetRoom);
+      setAuthPromptMessage('Please sign in or create an account to continue with your reservation.');
+      setAuthInitialTab('login');
+      setIsAuthModalOpen(true);
+      return;
+    }
+
     setIsBookingModalOpen(true);
   };
 
@@ -81,7 +94,17 @@ function MainApp() {
   };
 
   const handleOpenAuth = (initialTab: 'login' | 'register' = 'login') => {
+    setAuthPromptMessage(null);
+    setPendingBookingRoom(null);
     setAuthInitialTab(initialTab);
+    setIsAuthModalOpen(true);
+  };
+
+  const handleRequireAuthFromBooking = (tab: 'login' | 'register' = 'login') => {
+    setIsBookingModalOpen(false);
+    setPendingBookingRoom(selectedRoomForBooking);
+    setAuthPromptMessage('Please sign in or create an account to continue with your reservation.');
+    setAuthInitialTab(tab);
     setIsAuthModalOpen(true);
   };
 
@@ -163,6 +186,7 @@ function MainApp() {
         initialCheckIn={searchCheckIn}
         initialCheckOut={searchCheckOut}
         initialGuests={searchGuests}
+        onRequireAuth={handleRequireAuthFromBooking}
         onBookingSuccess={handleBookingSuccess}
       />
 
@@ -175,11 +199,24 @@ function MainApp() {
 
       <AuthModal
         isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
+        onClose={() => {
+          setIsAuthModalOpen(false);
+          setAuthPromptMessage(null);
+        }}
         initialTab={authInitialTab}
+        promptMessage={authPromptMessage}
+        pendingRoomName={pendingBookingRoom?.room_name}
         onSuccess={(isAdminLogin?: boolean) => {
           if (isAdminLogin) {
             setActiveView('admin');
+            setPendingBookingRoom(null);
+            setAuthPromptMessage(null);
+          } else if (pendingBookingRoom) {
+            // Restore originally selected room and immediately resume booking flow
+            setSelectedRoomForBooking(pendingBookingRoom);
+            setIsBookingModalOpen(true);
+            setPendingBookingRoom(null);
+            setAuthPromptMessage(null);
           } else if (activeView === 'home') {
             setActiveView('dashboard');
           }
